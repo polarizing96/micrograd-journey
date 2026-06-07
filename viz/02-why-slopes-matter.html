@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why the slope matters: rolling downhill</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#6b7280; --line:#d1d5db; --curve:#2563eb;
+    --ball:#dc2626; --arrow:#059669; --bg:#fbfbfd; --card:#fff;
+  }
+  *{box-sizing:border-box;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg);margin:0;padding:24px;line-height:1.55;}
+  .wrap{max-width:900px;margin:0 auto;}
+  h1{font-size:26px;margin:0 0 4px;}
+  .sub{color:var(--muted);margin:0 0 18px;font-size:15px;}
+  canvas{background:var(--card);border:1px solid var(--line);border-radius:12px;width:100%;height:auto;display:block;}
+  .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0;}
+  button{font-size:15px;font-weight:600;padding:10px 18px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;}
+  button.primary{background:#059669;color:#fff;border-color:#059669;}
+  button:active{transform:translateY(1px);}
+  .stat{font-variant-numeric:tabular-nums;font-size:15px;}
+  .stat b{font-size:20px;}
+  .sentence{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;margin-top:6px;font-size:16px;}
+  .sentence.done{background:#eff6ff;border-color:#bfdbfe;}
+  .note{font-size:14px;color:var(--muted);margin-top:20px;border-top:1px solid var(--line);padding-top:14px;}
+  code{background:#f3f4f6;padding:1px 5px;border-radius:4px;font-size:13px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Why the slope matters</h1>
+  <p class="sub">This curve is the <b>error</b> &mdash; lower is better. The <span style="color:var(--ball);font-weight:700">red ball</span> is where your knob is set. Press the button and watch the slope roll it downhill to the lowest error. <b>That is training.</b></p>
+
+  <canvas id="c" width="800" height="420"></canvas>
+
+  <div class="bar">
+    <button class="primary" id="step">⬇ Take one step downhill</button>
+    <button id="auto">▶ Auto-roll</button>
+    <button id="reset">↺ Reset</button>
+    <span class="stat" style="margin-left:8px">step <b id="n">0</b></span>
+    <span class="stat">error = <b id="err">—</b></span>
+    <span class="stat">slope = <b id="slope">—</b></span>
+  </div>
+
+  <div class="sentence" id="sentence"></div>
+
+  <div class="note">
+    <p><b>Read it:</b> the <span style="color:var(--arrow);font-weight:700">green arrow</span> shows the slope under the ball.
+    <b>Slope positive</b> (arrow points up-right) → downhill is <b>LEFT</b>, so step left.
+    <b>Slope negative</b> (arrow points up-left) → step <b>RIGHT</b>.
+    Either way: <b>step the opposite way the slope points.</b></p>
+    <p><b>The rule each step:</b> <code>knob = knob − (small number) × slope</code>. The minus sign is what makes it go <i>down</i>hill. When the slope reaches ~0 the ball is at the bottom: the error can't drop any more, so it stops. <b>That's the whole training loop.</b></p>
+    <p><b>In micrograd:</b> a real net has thousands of these knobs (weights). Backprop computes the slope for <i>all of them at once</i>, then every knob takes one step downhill. Repeat → the error falls → the net learns.</p>
+  </div>
+</div>
+
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=cv.width,H=cv.height,pad=46;
+const xmin=-5,xmax=5,ymin=-1,ymax=13;
+const MIN_X=1.5, LR=0.18*2;            // valley bottom + step strength
+const f=x=>0.5*(x-MIN_X)*(x-MIN_X);     // the "error" curve (a valley)
+const fp=x=>(x-MIN_X);                   // its slope
+const START=-3.7;
+
+let x=START, n=0, timer=null;
+
+const sx=x=>pad+(x-xmin)/(xmax-xmin)*(W-2*pad);
+const sy=y=>H-pad-(y-ymin)/(ymax-ymin)*(H-2*pad);
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // grid
+  ctx.strokeStyle='#eef0f3';ctx.lineWidth=1;
+  for(let gx=-5;gx<=5;gx++){ctx.beginPath();ctx.moveTo(sx(gx),sy(ymin));ctx.lineTo(sx(gx),sy(ymax));ctx.stroke();}
+  for(let gy=0;gy<=12;gy+=2){ctx.beginPath();ctx.moveTo(sx(xmin),sy(gy));ctx.lineTo(sx(xmax),sy(gy));ctx.stroke();}
+  // axes labels
+  ctx.fillStyle='#9ca3af';ctx.font='13px sans-serif';
+  ctx.fillText('knob setting  →',sx(xmax)-110,sy(0)+18);
+  ctx.save();ctx.translate(sx(xmin)-8,sy(6));ctx.rotate(-Math.PI/2);ctx.fillText('error (lower = better)',0,0);ctx.restore();
+  // curve
+  ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--curve');
+  ctx.lineWidth=3;ctx.beginPath();let first=true;
+  for(let px=0;px<=W;px+=2){const xx=xmin+px/W*(xmax-xmin),yy=f(xx);
+    if(yy<ymin||yy>ymax){first=true;continue;}
+    if(first){ctx.moveTo(sx(xx),sy(yy));first=false;}else ctx.lineTo(sx(xx),sy(yy));}
+  ctx.stroke();
+  // mark the bottom
+  ctx.fillStyle='#bfdbfe';ctx.beginPath();ctx.arc(sx(MIN_X),sy(f(MIN_X)),5,0,7);ctx.fill();
+  ctx.fillStyle='#60a5fa';ctx.font='12px sans-serif';ctx.fillText('the bottom (best)',sx(MIN_X)-30,sy(0)+0);
+
+  const y=f(x),m=fp(x);
+  // slope arrow (green) under the ball
+  const ar=getComputedStyle(document.documentElement).getPropertyValue('--arrow');
+  const dx=1.1, x2=x+dx, y2=y+m*dx;
+  ctx.strokeStyle=ar;ctx.lineWidth=3;ctx.beginPath();
+  ctx.moveTo(sx(x-dx),sy(y-m*dx));ctx.lineTo(sx(x2),sy(y2));ctx.stroke();
+  // arrowhead
+  const ang=Math.atan2(sy(y2)-sy(y-m*dx),sx(x2)-sx(x-dx));
+  ctx.beginPath();ctx.moveTo(sx(x2),sy(y2));
+  ctx.lineTo(sx(x2)-12*Math.cos(ang-0.4),sy(y2)-12*Math.sin(ang-0.4));
+  ctx.moveTo(sx(x2),sy(y2));
+  ctx.lineTo(sx(x2)-12*Math.cos(ang+0.4),sy(y2)-12*Math.sin(ang+0.4));
+  ctx.stroke();
+  // the ball
+  ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--ball');
+  ctx.beginPath();ctx.arc(sx(x),sy(y),11,0,7);ctx.fill();
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+
+  // readouts
+  document.getElementById('n').textContent=n;
+  document.getElementById('err').textContent=y.toFixed(2);
+  document.getElementById('slope').textContent=m.toFixed(2);
+  const s=document.getElementById('sentence');
+  if(Math.abs(m)<0.05){
+    s.className='sentence done';
+    s.innerHTML=`🎉 Slope ≈ 0 → we're at the bottom. Error is as low as it gets (${y.toFixed(2)}). The knob is trained. Nothing left to improve.`;
+    stopAuto();
+  }else{
+    const dir=m>0?'LEFT':'RIGHT';
+    s.innerHTML=`Slope is <b>${m.toFixed(2)}</b> (${m>0?'pointing up to the right':'pointing up to the left'}) → step the ball <b>${dir}</b> to drop the error. Press the button.`;
+  }
+}
+
+function step(){ x = x - LR*fp(x); n++; draw(); }
+function stopAuto(){ if(timer){clearInterval(timer);timer=null;document.getElementById('auto').textContent='▶ Auto-roll';} }
+document.getElementById('step').onclick=()=>{ if(Math.abs(fp(x))>=0.05) step(); };
+document.getElementById('auto').onclick=()=>{
+  if(timer){stopAuto();return;}
+  document.getElementById('auto').textContent='⏸ Pause';
+  timer=setInterval(()=>{ if(Math.abs(fp(x))<0.05){stopAuto();return;} step(); },350);
+};
+document.getElementById('reset').onclick=()=>{ stopAuto(); x=START; n=0; draw(); };
+draw();
+</script>
+</body>
+</html>
