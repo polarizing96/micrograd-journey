@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The nudge: how the slope gets measured</title>
+<style>
+  :root{--ink:#1a1a1a;--muted:#6b7280;--line:#d1d5db;--curve:#2563eb;--a:#111;--b:#059669;--bg:#fbfbfd;--card:#fff;}
+  *{box-sizing:border-box;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg);margin:0;padding:24px;line-height:1.55;}
+  .wrap{max-width:900px;margin:0 auto;}
+  h1{font-size:26px;margin:0 0 4px;}
+  .sub{color:var(--muted);margin:0 0 18px;font-size:15px;}
+  .grid{display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;}
+  @media(max-width:800px){.grid{grid-template-columns:1fr;}}
+  canvas{background:var(--card);border:1px solid var(--line);border-radius:12px;width:100%;height:auto;display:block;}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;}
+  label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px;}
+  input[type=range]{width:100%;}
+  button{font-size:16px;font-weight:700;padding:12px 18px;border-radius:10px;border:1px solid #059669;background:#059669;color:#fff;cursor:pointer;width:100%;margin-top:8px;}
+  button:active{transform:translateY(1px);}
+  .calc{font-variant-numeric:tabular-nums;font-size:15px;margin:14px 0 0;}
+  .calc .row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--line);}
+  .calc .k{color:var(--muted);}
+  .big{font-size:20px;font-weight:800;margin-top:12px;text-align:center;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px;}
+  .mean{font-size:15px;margin-top:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:11px 13px;}
+  .hint{color:var(--muted);font-size:13px;margin-top:8px;}
+  .note{font-size:14px;color:var(--muted);margin-top:20px;border-top:1px solid var(--line);padding-top:14px;}
+  code{background:#f3f4f6;padding:1px 5px;border-radius:4px;font-size:13px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>The nudge: how the slope gets <i>measured</i></h1>
+  <p class="sub">Set the knob anywhere, then press <b>Poke</b>. Watch the knob move a tiny bit, the output react, and the slope fall out of one division. (Like a speedometer: distance moved ÷ tiny time.)</p>
+
+  <div class="grid">
+    <canvas id="c" width="540" height="440"></canvas>
+
+    <div class="panel">
+      <label>knob setting: <b id="knobLbl" style="color:#111;font-size:16px"></b></label>
+      <input type="range" id="knob" min="-3" max="3" step="0.1" value="2">
+
+      <button id="poke">👉 Poke the knob a tiny bit</button>
+      <div class="hint">(poke size is fixed and small — that's the "tiny experiment")</div>
+
+      <div class="calc" id="calc" style="display:none">
+        <div class="row"><span class="k">knob moved</span><span id="dk"></span></div>
+        <div class="row"><span class="k">output moved</span><span id="do"></span></div>
+        <div class="big" id="slope"></div>
+        <div class="mean" id="mean"></div>
+      </div>
+      <div class="hint" id="prompt">Press Poke to run the measurement.</div>
+    </div>
+  </div>
+
+  <div class="note">
+    <p><b>What just happened:</b> a slope is a <i>rate</i> — "how much output per 1 unit of knob." To measure it you poke the knob a tiny bit, see how much the output reacts, and divide: <code>slope = (output moved) ÷ (knob moved)</code>. That's the nudge. Nothing more.</p>
+    <p><b>Try poking at different knob settings.</b> At knob = 2 the slope is big and positive (steep uphill to the right). At knob = 0 it's ~0 (flat — poking barely changes the output). At knob = −2 it's negative (uphill to the left). The nudge re-measures the slope <i>wherever you currently are</i> — just like a speedometer reads your speed <i>right now</i>, not your average for the trip.</p>
+    <p><b>The payoff:</b> that slope number is the steepness + direction of the downhill arrow from the rolling-ball demo. Nudge to <i>measure</i> it → then step downhill to <i>use</i> it.</p>
+  </div>
+</div>
+
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=cv.width,H=cv.height,pad=44;
+const xmin=-3.4,xmax=3.4,ymin=-1,ymax=10;
+const f=x=>x*x;
+const H_POKE=0.18;            // the (small) nudge, visible enough to see on screen
+const sx=x=>pad+(x-xmin)/(xmax-xmin)*(W-2*pad);
+const sy=y=>H-pad-(y-ymin)/(ymax-ymin)*(H-2*pad);
+const knobEl=document.getElementById('knob');
+let showPoke=false;
+
+function base(){
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='#eef0f3';ctx.lineWidth=1;
+  for(let gx=-3;gx<=3;gx++){ctx.beginPath();ctx.moveTo(sx(gx),sy(ymin));ctx.lineTo(sx(gx),sy(ymax));ctx.stroke();}
+  for(let gy=0;gy<=10;gy+=2){ctx.beginPath();ctx.moveTo(sx(xmin),sy(gy));ctx.lineTo(sx(xmax),sy(gy));ctx.stroke();}
+  ctx.fillStyle='#9ca3af';ctx.font='13px sans-serif';
+  ctx.fillText('knob →',sx(xmax)-50,sy(0)+18);
+  ctx.save();ctx.translate(sx(xmin)-6,sy(5));ctx.rotate(-Math.PI/2);ctx.fillText('output',0,0);ctx.restore();
+  ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--curve');
+  ctx.lineWidth=3;ctx.beginPath();let first=true;
+  for(let px=0;px<=W;px+=2){const xx=xmin+px/W*(xmax-xmin),yy=f(xx);
+    if(yy<ymin||yy>ymax){first=true;continue;}
+    if(first){ctx.moveTo(sx(xx),sy(yy));first=false;}else ctx.lineTo(sx(xx),sy(yy));}
+  ctx.stroke();
+}
+function dot(x,y,c,r,lbl,dy){ctx.fillStyle=c;ctx.beginPath();ctx.arc(sx(x),sy(y),r,0,7);ctx.fill();
+  if(lbl){ctx.fillStyle=c;ctx.font='bold 12px sans-serif';ctx.fillText(lbl,sx(x)-6,sy(y)+(dy||-12));}}
+
+function draw(){
+  const x=+knobEl.value, y=f(x);
+  base();
+  document.getElementById('knobLbl').textContent=x.toFixed(1);
+  if(!showPoke){ dot(x,y,'#111',7,'now',-12); return; }
+  const x2=x+H_POKE, y2=f(x2);
+  const dk=x2-x, dout=y2-y, slope=dout/dk;
+  // rise/run triangle (zoomed visually but exaggerated so it's visible)
+  ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--b');
+  ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(sx(x),sy(y));ctx.lineTo(sx(x2),sy(y));ctx.stroke();      // run
+  ctx.beginPath();ctx.moveTo(sx(x2),sy(y));ctx.lineTo(sx(x2),sy(y2));ctx.stroke();    // rise
+  dot(x,y,'#111',7,'before',-12);
+  dot(x2,y2,getComputedStyle(document.documentElement).getPropertyValue('--b'),6,'after poke',-12);
+  // labels on the triangle
+  ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--b');
+  ctx.font='12px sans-serif';
+  ctx.fillText('knob +'+dk.toFixed(2),(sx(x)+sx(x2))/2-24,sy(y)+16);
+  ctx.fillText('out '+(dout>=0?'+':'')+dout.toFixed(2),sx(x2)+6,(sy(y)+sy(y2))/2);
+  // readout
+  document.getElementById('calc').style.display='block';
+  document.getElementById('prompt').style.display='none';
+  document.getElementById('dk').textContent='+'+dk.toFixed(2);
+  document.getElementById('do').textContent=(dout>=0?'+':'')+dout.toFixed(2);
+  document.getElementById('slope').innerHTML='slope = '+(dout>=0?'+':'')+dout.toFixed(2)+' ÷ '+dk.toFixed(2)+' = <span style="color:#dc2626">'+slope.toFixed(1)+'</span>';
+  const dir=slope>0.1?'UP (warmer to the right)':slope<-0.1?'UP if you go LEFT (warmer to the left)':'barely change (flat — you’re near the bottom)';
+  document.getElementById('mean').innerHTML='Meaning: push the knob up by 1 and the output goes <b>'+dir+'</b>, about <b>'+Math.abs(slope).toFixed(1)+'</b> per 1.';
+}
+knobEl.oninput=()=>{showPoke=false;draw();};
+document.getElementById('poke').onclick=()=>{showPoke=true;draw();};
+draw();
+</script>
+</body>
+</html>
