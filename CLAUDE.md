@@ -47,3 +47,6 @@ preserving the real struggles, not a sanitized tutorial.
 - `journal/` — dated session logs (raw thoughts, the real story).
 - `code/` — the micrograd Kevin writes, step by step.
 - `posts/` — clean blog posts, assembled at the end.
+- `reference/transcript-001.md` — full timestamped transcript of the video. Grep it to
+  map a concept to its timestamp, or to quote Karpathy in the blog. Don't paste it at
+  Kevin — he's watching the video; use it to navigate.
