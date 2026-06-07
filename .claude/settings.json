@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && git add -A && (git diff --cached --quiet || git commit -q -m \"auto-save: $(date '+%F %T')\")"
+          }
+        ]
+      }
+    ]
+  }
+}
