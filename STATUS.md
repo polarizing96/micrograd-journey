@@ -5,8 +5,8 @@
 
 **Last updated:** 2026-06-07
 **Video:** Karpathy — "The spelled-out intro to neural networks and backpropagation: building micrograd"
-**Current position in video:** `00:00` (not started)
-**Current milestone:** M0 — Setup ✅
+**Current position in video:** `00:01:27` (intro / overview)
+**Current milestone:** M0 → heading into M1
 
 ---
 
@@ -30,9 +30,13 @@ Rough arc of the video. We tick these off as we go; order/exact boundaries can s
 
 ## Right now
 
-**Next step:** Open the video, start watching. When the `Value` class first appears,
-pause and create `code/value.py`. Talk through it with me as you type.
+**Next step:** Keep watching from ~1:27. When the `Value` class first appears, pause
+and create `code/value.py`. Talk through it with me as you type.
 
-**Currently stuck on:** nothing yet.
+**Currently stuck on:** nothing blocking — just got past the autograd/backprop
+vocabulary (see journal). Holding the intuition loosely; expecting it to solidify once
+we build the `Value` object.
 
-**Open questions / things to revisit:** none yet.
+**Open questions / things to revisit:**
+- Re-read the autograd/backprop journal note *after* finishing M5 (`.backward()`) and
+  check whether it actually clicked the way the intro promised.
