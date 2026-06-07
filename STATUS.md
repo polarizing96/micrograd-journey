@@ -38,10 +38,14 @@ analogy + the rolling-ball / step-size demos (see journal & viz/). Understands:
 slope = downhill direction for the error; step opposite it = training; step size =
 learning rate (too big → overshoot/explode). Built viz 01–03.
 
-**Concepts solid now:** what a gradient is, why we step downhill, learning rate.
+**Concepts solid now:** gradient = slope (direction + steepness); **nudge = the test
+that measures the slope; step = the real move that uses it (learning rate = how big)**;
+step too big → overshoot/explode. Kevin derived the nudge-vs-step distinction himself —
+it clicked. Built viz 01–04.
+
 **Not yet covered:** the chain rule / how the slope is computed through a *chain* of
-operations (the actual backprop) — that's the natural next intuition, then back to the
-video and the `Value` object.
+operations (the actual backprop) — natural next intuition, then back to the video and
+the `Value` object.
 
 **Open questions / things to revisit:**
 - Re-read the autograd/backprop journal note *after* finishing M5 (`.backward()`) and
