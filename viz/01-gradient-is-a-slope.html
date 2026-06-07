@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A gradient is just a slope</title>
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #6b7280; --line: #d1d5db;
+    --curve: #2563eb; --tangent: #dc2626; --nudge: #059669; --point: #111;
+    --bg: #fbfbfd; --card: #fff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--ink); background: var(--bg); margin: 0; padding: 24px;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 15px; }
+  .grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  canvas { background: var(--card); border: 1px solid var(--line); border-radius: 12px; width: 100%; height: auto; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+  .panel h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 4px; }
+  input[type=range] { width: 100%; }
+  .val { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+  .readout { font-variant-numeric: tabular-nums; font-size: 14px; margin: 6px 0; }
+  .readout .k { color: var(--muted); }
+  .big { font-size: 19px; font-weight: 700; margin: 4px 0 0; }
+  .sentence { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 12px 14px; margin-top: 14px; font-size: 15px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; margin: 10px 0 0; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 4px; border-radius: 2px; display: inline-block; }
+  .note { font-size: 14px; color: var(--muted); margin-top: 22px; border-top: 1px solid var(--line); padding-top: 16px; }
+  code { background: #f3f4f6; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .hl { color: var(--tangent); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>A gradient is just a slope</h1>
+  <p class="sub">Drag <b>x</b> around. The <span class="hl">red line</span> is the slope right there &mdash; that number <i>is</i> the gradient. Then shrink the <b>nudge</b> and watch "the calculus" happen.</p>
+
+  <div class="grid">
+    <div>
+      <canvas id="c" width="560" height="420"></canvas>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--curve)"></i> the function y = x&sup2;</span>
+        <span><i class="swatch" style="background:var(--tangent)"></i> the slope (gradient) at x</span>
+        <span><i class="swatch" style="background:var(--nudge)"></i> the nudge: run &amp; rise</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Controls</h2>
+
+      <label>x (the input knob): <span class="val" id="xLbl"></span></label>
+      <input type="range" id="x" min="-3" max="3" step="0.01" value="1">
+
+      <label>nudge size h (how far we wiggle x): <span class="val" id="hLbl"></span></label>
+      <input type="range" id="h" min="0.01" max="2" step="0.01" value="1.2">
+
+      <h2 style="margin-top:20px">What's happening</h2>
+      <div class="readout"><span class="k">start:</span> x = <span id="r_x"></span>, &nbsp; y = x&sup2; = <span id="r_y"></span></div>
+      <div class="readout"><span class="k">nudge x by h:</span> x+h = <span id="r_xh"></span></div>
+      <div class="readout"><span class="k">y moved by:</span> &Delta;y = <span id="r_dy"></span></div>
+      <div class="readout"><span class="k">slope of nudge:</span> &Delta;y / h = <span id="r_secant"></span></div>
+      <div class="big">gradient (true slope) = <span id="r_grad"></span></div>
+
+      <div class="sentence" id="sentence"></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <p><b>Read the picture:</b> the green triangle is your nudge &mdash; you step <b>right</b> by <code>h</code> (the run) and the curve steps <b>up or down</b> by <code>&Delta;y</code> (the rise). <b>Slope = rise / run.</b> That's the dashed green line's steepness.</p>
+    <p><b>Now the "calculus" part &mdash; just drag <code>h</code> toward 0.</b> Watch the green dashed line swing until it lies right on top of the <span class="hl">red line</span>, and watch <code>&Delta;y / h</code> settle onto the gradient number. A <b>derivative is nothing more than the slope you get when the nudge becomes infinitely tiny.</b> No mystery &mdash; it's the wiggle ratio after you stop shrinking.</p>
+    <p><b>Why this is the whole game in micrograd:</b> every <code>Value</code> you build will carry a <code>.grad</code> &mdash; and <code>.grad</code> is exactly this red number: "if I nudge me a hair, how much does the final output move, and which way?" Backprop is just computing this slope for <i>every</i> knob at once.</p>
+  </div>
+</div>
+
+<script>
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height, pad = 40;
+const xmin = -3.2, xmax = 3.2, ymin = -1.2, ymax = 9.5;
+
+const f = x => x * x;          // the function
+const fp = x => 2 * x;         // its true slope (derivative), used only to draw the red tangent
+
+const sx = x => pad + (x - xmin) / (xmax - xmin) * (W - 2 * pad);
+const sy = y => H - pad - (y - ymin) / (ymax - ymin) * (H - 2 * pad);
+
+function grid() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = '#eef0f3'; ctx.lineWidth = 1;
+  for (let gx = -3; gx <= 3; gx++) { ctx.beginPath(); ctx.moveTo(sx(gx), sy(ymin)); ctx.lineTo(sx(gx), sy(ymax)); ctx.stroke(); }
+  for (let gy = 0; gy <= 9; gy += 1) { ctx.beginPath(); ctx.moveTo(sx(xmin), sy(gy)); ctx.lineTo(sx(xmax), sy(gy)); ctx.stroke(); }
+  // axes
+  ctx.strokeStyle = '#9ca3af'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(sx(xmin), sy(0)); ctx.lineTo(sx(xmax), sy(0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(sx(0), sy(ymin)); ctx.lineTo(sx(0), sy(ymax)); ctx.stroke();
+  ctx.fillStyle = '#9ca3af'; ctx.font = '12px sans-serif';
+  ctx.fillText('x', sx(xmax) - 12, sy(0) - 6);
+  ctx.fillText('y', sx(0) + 6, sy(ymax) + 12);
+}
+
+function curve() {
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--curve');
+  ctx.lineWidth = 2.5; ctx.beginPath();
+  let first = true;
+  for (let px = 0; px <= W; px += 2) {
+    const x = xmin + px / W * (xmax - xmin), y = f(x);
+    if (y < ymin || y > ymax) { first = true; continue; }
+    const X = sx(x), Y = sy(y);
+    if (first) { ctx.moveTo(X, Y); first = false; } else ctx.lineTo(X, Y);
+  }
+  ctx.stroke();
+}
+
+function dot(x, y, color, r = 5) {
+  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(sx(x), sy(y), r, 0, 7); ctx.fill();
+}
+
+function draw() {
+  const x = +xEl.value, h = +hEl.value;
+  const y = f(x), x2 = x + h, y2 = f(x2);
+  const dy = y2 - y, secant = dy / h, grad = fp(x);
+
+  grid(); curve();
+
+  // --- nudge triangle (run + rise) ---
+  const g = getComputedStyle(document.documentElement).getPropertyValue('--nudge');
+  ctx.strokeStyle = g; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(sx(x), sy(y)); ctx.lineTo(sx(x2), sy(y)); ctx.stroke();   // run
+  ctx.beginPath(); ctx.moveTo(sx(x2), sy(y)); ctx.lineTo(sx(x2), sy(y2)); ctx.stroke(); // rise
+  // secant (slope of the nudge), dashed
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath();
+  const ext = 2.2;
+  ctx.moveTo(sx(x - ext), sy(y - secant * ext));
+  ctx.lineTo(sx(x2 + ext), sy(y2 + secant * ext));
+  ctx.stroke(); ctx.setLineDash([]);
+
+  // --- true tangent (red) ---
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--tangent');
+  ctx.lineWidth = 2.5; ctx.beginPath();
+  ctx.moveTo(sx(x - 3), sy(y - grad * 3));
+  ctx.lineTo(sx(x + 3), sy(y + grad * 3));
+  ctx.stroke();
+
+  // points
+  dot(x2, y2, g, 4.5);
+  dot(x, y, '#111', 6);
+
+  // labels
+  ctx.fillStyle = '#111'; ctx.font = 'bold 12px sans-serif';
+  ctx.fillText('x', sx(x) - 3, sy(y) + 20);
+  ctx.fillStyle = g; ctx.fillText('x+h', sx(x2) - 8, sy(y) + 20);
+
+  // readouts
+  const f2 = v => v.toFixed(2);
+  xLbl.textContent = f2(x); hLbl.textContent = f2(h);
+  r_x.textContent = f2(x); r_y.textContent = f2(y);
+  r_xh.textContent = f2(x2); r_dy.textContent = f2(dy);
+  r_secant.textContent = f2(secant); r_grad.textContent = f2(grad);
+
+  const dir = grad > 0.05 ? 'UP' : grad < -0.05 ? 'DOWN' : 'barely move (flat!)';
+  const steep = Math.abs(grad) < 0.05 ? '' : ` about <b>${Math.abs(grad).toFixed(1)}&times;</b> as fast as you nudged`;
+  sentence.innerHTML = `Nudge x up a hair and y goes <b>${dir}</b>${steep}. The gradient here is <b>${f2(grad)}</b>.`;
+}
+
+const xEl = document.getElementById('x'), hEl = document.getElementById('h');
+const xLbl = document.getElementById('xLbl'), hLbl = document.getElementById('hLbl');
+const r_x = document.getElementById('r_x'), r_y = document.getElementById('r_y'),
+      r_xh = document.getElementById('r_xh'), r_dy = document.getElementById('r_dy'),
+      r_secant = document.getElementById('r_secant'), r_grad = document.getElementById('r_grad'),
+      sentence = document.getElementById('sentence');
+xEl.oninput = draw; hEl.oninput = draw;
+draw();
+</script>
+</body>
+</html>
