@@ -33,9 +33,15 @@ Rough arc of the video. We tick these off as we go; order/exact boundaries can s
 **Next step:** Keep watching from ~1:27. When the `Value` class first appears, pause
 and create `code/value.py`. Talk through it with me as you type.
 
-**Currently stuck on:** nothing blocking — just got past the autograd/backprop
-vocabulary (see journal). Holding the intuition loosely; expecting it to solidify once
-we build the `Value` object.
+**Currently stuck on:** nothing — gradient intuition clicked via the "warmer/colder"
+analogy + the rolling-ball / step-size demos (see journal & viz/). Understands:
+slope = downhill direction for the error; step opposite it = training; step size =
+learning rate (too big → overshoot/explode). Built viz 01–03.
+
+**Concepts solid now:** what a gradient is, why we step downhill, learning rate.
+**Not yet covered:** the chain rule / how the slope is computed through a *chain* of
+operations (the actual backprop) — that's the natural next intuition, then back to the
+video and the `Value` object.
 
 **Open questions / things to revisit:**
 - Re-read the autograd/backprop journal note *after* finishing M5 (`.backward()`) and

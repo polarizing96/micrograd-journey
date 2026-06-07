@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How big a step? (the learning rate)</title>
+<style>
+  :root{--ink:#1a1a1a;--muted:#6b7280;--line:#d1d5db;--curve:#2563eb;--ball:#dc2626;--trail:#f59e0b;--bg:#fbfbfd;--card:#fff;}
+  *{box-sizing:border-box;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg);margin:0;padding:24px;line-height:1.55;}
+  .wrap{max-width:900px;margin:0 auto;}
+  h1{font-size:26px;margin:0 0 4px;}
+  .sub{color:var(--muted);margin:0 0 18px;font-size:15px;}
+  canvas{background:var(--card);border:1px solid var(--line);border-radius:12px;width:100%;height:auto;display:block;}
+  .controls{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-top:16px;}
+  label{display:block;font-size:14px;color:var(--muted);margin:0 0 6px;}
+  input[type=range]{width:100%;}
+  .lrval{font-size:22px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0 0;}
+  button{font-size:15px;font-weight:600;padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;}
+  button.primary{background:#059669;color:#fff;border-color:#059669;}
+  .stat{font-variant-numeric:tabular-nums;font-size:15px;}
+  .stat b{font-size:19px;}
+  .sentence{border-radius:10px;padding:12px 14px;margin-top:14px;font-size:16px;border:1px solid;}
+  .good{background:#f0fdf4;border-color:#bbf7d0;}
+  .warn{background:#fffbeb;border-color:#fde68a;}
+  .bad{background:#fef2f2;border-color:#fecaca;}
+  .presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .presets button{font-size:13px;padding:7px 12px;}
+  .note{font-size:14px;color:var(--muted);margin-top:20px;border-top:1px solid var(--line);padding-top:14px;}
+  code{background:#f3f4f6;padding:1px 5px;border-radius:4px;font-size:13px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>How big a step? &mdash; the "learning rate"</h1>
+  <p class="sub">Same valley (the error). The slope tells the ball which way is downhill. <b>The step-size slider decides how far it walks each step.</b> Crank it up and watch what happens.</p>
+
+  <canvas id="c" width="800" height="420"></canvas>
+
+  <div class="controls">
+    <label>step size (learning rate): <span class="lrval" id="lrLbl"></span></label>
+    <input type="range" id="lr" min="0.05" max="2.6" step="0.05" value="0.3">
+    <div class="presets">
+      <button data-lr="0.1">🐢 tiny (0.1)</button>
+      <button data-lr="0.7">👍 good (0.7)</button>
+      <button data-lr="1.0">🎯 perfect (1.0)</button>
+      <button data-lr="1.8">🏓 bouncy (1.8)</button>
+      <button data-lr="2.3">💥 explode (2.3)</button>
+    </div>
+    <div class="bar">
+      <button class="primary" id="step">⬇ One step</button>
+      <button id="auto">▶ Auto-roll</button>
+      <button id="reset">↺ Reset ball</button>
+      <span class="stat" style="margin-left:6px">step <b id="n">0</b></span>
+      <span class="stat">error = <b id="err">—</b></span>
+    </div>
+    <div class="sentence" id="sentence"></div>
+  </div>
+
+  <div class="note">
+    <p>The orange dots are the ball's <b>past positions</b> &mdash; the trail shows whether it glides in, bounces across the bottom, or flies apart.</p>
+    <p><b>The update each step is literally:</b> <code>knob = knob − (step size) × slope</code>. Small step → slow crawl. Too-big step → leap over the bottom and overshoot. Way-too-big → each leap lands farther out and the error explodes. There's a sweet spot in between &mdash; finding it is a real part of the job in ML.</p>
+  </div>
+</div>
+
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=cv.width,H=cv.height,pad=46;
+const xmin=-6,xmax=9,ymin=-1,ymax=13;
+const MIN_X=1.5;
+const f=x=>0.5*(x-MIN_X)*(x-MIN_X);
+const fp=x=>(x-MIN_X);
+const START=-3.5;
+let x=START,n=0,timer=null,trail=[START],exploded=false;
+
+const sx=x=>pad+(x-xmin)/(xmax-xmin)*(W-2*pad);
+const sy=y=>H-pad-(y-ymin)/(ymax-ymin)*(H-2*pad);
+const lrEl=document.getElementById('lr');
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='#eef0f3';ctx.lineWidth=1;
+  for(let gx=-6;gx<=9;gx++){ctx.beginPath();ctx.moveTo(sx(gx),sy(ymin));ctx.lineTo(sx(gx),sy(ymax));ctx.stroke();}
+  for(let gy=0;gy<=12;gy+=2){ctx.beginPath();ctx.moveTo(sx(xmin),sy(gy));ctx.lineTo(sx(xmax),sy(gy));ctx.stroke();}
+  ctx.fillStyle='#9ca3af';ctx.font='13px sans-serif';
+  ctx.fillText('knob setting →',sx(xmax)-100,sy(0)+18);
+  // curve
+  ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--curve');
+  ctx.lineWidth=3;ctx.beginPath();let first=true;
+  for(let px=0;px<=W;px+=2){const xx=xmin+px/W*(xmax-xmin),yy=f(xx);
+    if(yy<ymin||yy>ymax){first=true;continue;}
+    if(first){ctx.moveTo(sx(xx),sy(yy));first=false;}else ctx.lineTo(sx(xx),sy(yy));}
+  ctx.stroke();
+  ctx.fillStyle='#bfdbfe';ctx.beginPath();ctx.arc(sx(MIN_X),sy(f(MIN_X)),5,0,7);ctx.fill();
+  ctx.fillStyle='#60a5fa';ctx.font='12px sans-serif';ctx.fillText('the bottom',sx(MIN_X)-22,sy(0)+0);
+  // trail
+  const tcol=getComputedStyle(document.documentElement).getPropertyValue('--trail');
+  for(let i=0;i<trail.length;i++){
+    const tx=trail[i],ty=f(tx);
+    if(ty<ymin||ty>ymax)continue;
+    ctx.globalAlpha=Math.max(0.15,(i+1)/trail.length);
+    ctx.fillStyle=tcol;ctx.beginPath();ctx.arc(sx(tx),sy(ty),4,0,7);ctx.fill();
+    if(i>0){const px0=trail[i-1];ctx.strokeStyle=tcol;ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.moveTo(sx(px0),sy(f(px0)));ctx.lineTo(sx(tx),sy(ty));ctx.stroke();}
+  }
+  ctx.globalAlpha=1;
+  // ball
+  const y=f(x);
+  if(y<=ymax){
+    ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--ball');
+    ctx.beginPath();ctx.arc(sx(x),sy(y),11,0,7);ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  }
+  // readouts
+  document.getElementById('n').textContent=n;
+  document.getElementById('err').textContent=(y>9999?'∞ 💥':y.toFixed(2));
+  document.getElementById('lrLbl').textContent=(+lrEl.value).toFixed(2);
+  message();
+}
+
+function message(){
+  const lr=+lrEl.value,s=document.getElementById('sentence');
+  if(exploded){s.className='sentence bad';s.innerHTML='💥 <b>Exploded.</b> The step was so big that every leap lands farther from the bottom — the error blows up to infinity. This is "diverging." Hit reset and pick a smaller step.';return;}
+  if(Math.abs(fp(x))<0.03 && n>0){s.className='sentence good';s.innerHTML='🎉 <b>Landed at the bottom.</b> Lowest error, slope ≈ 0. Trained.';return;}
+  if(lr<0.4){s.className='sentence good';s.innerHTML='🐢 <b>Small step.</b> Safe and steady — it’ll get there, just slowly. Lots of baby steps.';}
+  else if(lr<=1.05){s.className='sentence good';s.innerHTML='👍 <b>Good step.</b> Glides into the bottom efficiently. Around 1.0 it basically nails it in one go for this curve.';}
+  else if(lr<2.0){s.className='sentence warn';s.innerHTML='🏓 <b>Too big — overshooting.</b> It leaps past the bottom and bounces back and forth, slowly settling. Watch the trail zig-zag across the valley.';}
+  else{s.className='sentence bad';s.innerHTML='⚠️ <b>Way too big.</b> Each leap lands farther out than the last — about to fly apart. Press auto and watch it explode.';}
+}
+
+function step(){
+  if(exploded)return;
+  const lr=+lrEl.value;
+  x=x-lr*fp(x); n++; trail.push(x);
+  if(trail.length>40)trail.shift();
+  if(!isFinite(x)||Math.abs(x-MIN_X)>50){exploded=true;stopAuto();}
+  draw();
+}
+function stopAuto(){if(timer){clearInterval(timer);timer=null;document.getElementById('auto').textContent='▶ Auto-roll';}}
+document.getElementById('step').onclick=()=>{ if(!exploded && Math.abs(fp(x))>=0.03) step(); };
+document.getElementById('auto').onclick=()=>{
+  if(timer){stopAuto();return;}
+  document.getElementById('auto').textContent='⏸ Pause';
+  timer=setInterval(()=>{ if(exploded||(Math.abs(fp(x))<0.03&&n>0)){stopAuto();return;} step(); },400);
+};
+document.getElementById('reset').onclick=()=>{stopAuto();x=START;n=0;trail=[START];exploded=false;draw();};
+lrEl.oninput=()=>{message();document.getElementById('lrLbl').textContent=(+lrEl.value).toFixed(2);};
+document.querySelectorAll('.presets button').forEach(b=>b.onclick=()=>{lrEl.value=b.dataset.lr;document.getElementById('reset').onclick();});
+draw();
+</script>
+</body>
+</html>
