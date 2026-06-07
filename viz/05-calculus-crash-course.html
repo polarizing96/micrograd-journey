@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The only calculus micrograd needs — crash course + quiz</title>
+<style>
+  :root{--ink:#1a1a1a;--muted:#6b7280;--line:#e2e5ea;--blue:#2563eb;--green:#059669;--red:#dc2626;--amber:#d97706;--bg:#fbfbfd;--card:#fff;}
+  *{box-sizing:border-box;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg);margin:0;padding:0 16px 80px;line-height:1.6;}
+  .wrap{max-width:760px;margin:0 auto;}
+  header{position:sticky;top:0;background:rgba(251,251,253,.95);backdrop-filter:blur(6px);padding:14px 0;border-bottom:1px solid var(--line);z-index:10;margin-bottom:8px;}
+  .htitle{font-size:15px;font-weight:700;}
+  .progwrap{height:8px;background:#eceef2;border-radius:99px;margin-top:8px;overflow:hidden;}
+  .prog{height:100%;width:0;background:var(--green);transition:width .3s;}
+  .score{font-size:13px;color:var(--muted);margin-top:4px;}
+  h1{font-size:28px;margin:18px 0 6px;}
+  h2{font-size:21px;margin:36px 0 4px;padding-top:10px;}
+  .tag{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--blue);background:#eff4ff;padding:3px 9px;border-radius:99px;}
+  .lead{color:var(--muted);font-size:16px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:14px 0;}
+  .rule{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px 16px;margin:14px 0;font-size:17px;}
+  .rule b{color:#065f46;}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#f3f4f6;padding:1px 6px;border-radius:5px;font-size:14px;}
+  sup{font-size:.7em;}
+  .ex{font-family:ui-monospace,monospace;font-size:14px;background:#f8fafc;border-left:3px solid var(--blue);padding:8px 12px;margin:8px 0;border-radius:0 8px 8px 0;white-space:pre-wrap;}
+  .micro{font-size:14px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin:12px 0;}
+  .micro b{color:var(--amber);}
+  /* chain diagram */
+  .chain{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;margin:16px 0;font-family:ui-monospace,monospace;}
+  .node{background:#eff4ff;border:1px solid #bfdbfe;border-radius:10px;padding:8px 12px;font-weight:700;}
+  .box{background:#1a1a1a;color:#fff;border-radius:10px;padding:8px 12px;font-weight:700;}
+  .arrow{color:var(--muted);font-size:20px;}
+  /* quiz */
+  .q{border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:14px 0;background:var(--card);}
+  .qq{font-weight:600;margin-bottom:10px;}
+  .opt{display:block;width:100%;text-align:left;font-size:15px;padding:11px 14px;margin:7px 0;border:1.5px solid var(--line);border-radius:10px;background:#fff;cursor:pointer;font-family:inherit;}
+  .opt:hover:not(:disabled){border-color:var(--blue);}
+  .opt:disabled{cursor:default;opacity:.95;}
+  .opt.correct{background:#f0fdf4;border-color:var(--green);color:#065f46;font-weight:700;}
+  .opt.wrong{background:#fef2f2;border-color:var(--red);color:#991b1b;}
+  .explain{font-size:14px;margin-top:10px;padding:10px 12px;background:#f8fafc;border-radius:8px;color:#334155;}
+  .interact{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-family:ui-monospace,monospace;font-size:15px;}
+  .interact input{width:64px;font-size:15px;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px;text-align:center;font-family:inherit;}
+  .big-eq{font-size:20px;font-weight:800;}
+  .done-banner{display:none;background:linear-gradient(135deg,#059669,#047857);color:#fff;border-radius:16px;padding:24px;text-align:center;margin-top:24px;}
+  .done-banner h2{margin:0 0 6px;color:#fff;}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="htitle">🧮 The only calculus micrograd needs</div>
+  <div class="progwrap"><div class="prog" id="prog"></div></div>
+  <div class="score" id="scoreLbl">0 of 0 questions answered</div>
+</div></header>
+
+<div class="wrap">
+
+  <h1>You need exactly 5 things 🎯</h1>
+  <p class="lead">No calculus background assumed. Each idea is a couple minutes + a quick quiz to lock it in. Everything connects straight to the code you're about to write in <code>value.py</code>.</p>
+  <div class="card">
+    <ol style="margin:0;padding-left:20px;font-size:16px;">
+      <li><b>Derivative = slope</b> — you already get this (it's the nudge)</li>
+      <li><b>Power rule</b> — the workhorse</li>
+      <li><b>Sum rule</b> — handle pieces separately</li>
+      <li><b>Product rule</b> — when things are multiplied</li>
+      <li><b>Chain rule</b> — the big one. This one <i>is</i> backprop.</li>
+    </ol>
+  </div>
+
+  <!-- ===== 1 ===== -->
+  <h2><span class="tag">1 · recap</span> Derivative = slope (decoding the symbols)</h2>
+  <p>A <b>derivative</b> is just the slope you already understand: <i>"if I nudge the input a tiny bit, how fast does the output change?"</i> The scary part is only the notation. Decoder ring:</p>
+  <div class="card">
+    <p style="margin:4px 0"><code>f(x)</code> — the machine. Feed it <code>x</code>, get a number out.</p>
+    <p style="margin:4px 0"><code>f'(x)</code> — "f prime" — the machine's <b>slope rule</b>. Feed it <code>x</code>, get the slope there.</p>
+    <p style="margin:4px 0"><code>dy/dx</code> — reads "change in y per change in x." The <code>d</code> just means "a tiny change in." <b>Same thing as the slope.</b></p>
+    <p style="margin:4px 0;color:var(--muted)">All three mean: <b>the slope = the nudge ratio.</b></p>
+  </div>
+  <div class="micro"><b>micrograd link:</b> every <code>Value</code> stores <code>.grad</code> — that's just <code>f'</code> evaluated for that node: "how much does the final loss move if I nudge me?"</div>
+  <div id="q1"></div>
+
+  <!-- ===== 2 ===== -->
+  <h2><span class="tag">2 · the workhorse</span> The power rule</h2>
+  <p>For a knob raised to a power, <code>f(x) = x<sup>n</sup></code>, the slope is:</p>
+  <div class="rule">📏 <b>slope of x<sup>n</sup> = n · x<sup>n−1</sup></b><br><span style="font-size:14px;color:#065f46">Recipe: bring the exponent down to the front, then knock 1 off the exponent.</span></div>
+  <div class="ex">x²  →  2·x¹   = 2x
+x³  →  3·x²
+x⁵  →  5·x⁴
+x   →  1·x⁰   = 1     (x is x¹, and anything⁰ = 1)</div>
+  <p style="font-size:14px;color:var(--muted)">Sanity check: remember the algebra from before — poking x² gave <code>2x + h</code>, and shrinking the poke to 0 left <code>2x</code>. The power rule is just that result, memorized so you skip the poke.</p>
+  <div class="card">
+    <div class="interact">
+      <span>try it:　slope of x<sup><input id="pn" type="number" value="4" min="1" max="9" style="width:48px"></sup></span>
+      <span class="arrow">→</span>
+      <span class="big-eq" id="pout"></span>
+    </div>
+  </div>
+  <div id="q2"></div>
+
+  <!-- ===== 3 ===== -->
+  <h2><span class="tag">3 · easy ones</span> Constants &amp; the sum rule</h2>
+  <div class="rule">📏 <b>A plain number has slope 0.</b> &nbsp;(slope of <code>7</code> is <code>0</code> — a flat line doesn't tilt)</div>
+  <div class="rule">📏 <b>A multiplier rides along:</b> slope of <code>3·x²</code> = <code>3·(2x)</code> = <code>6x</code></div>
+  <div class="rule">📏 <b>Sum rule:</b> the slope of a sum = the sum of the slopes. Do each piece separately.</div>
+  <div class="ex">slope of ( x² + x³ )  =  2x + 3x²
+slope of ( 5x² + 7 )  =  10x + 0  =  10x</div>
+  <div class="micro"><b>micrograd link:</b> this is the <code>+</code> node. When gradient flows back through a <code>+</code>, it passes <b>straight through unchanged</b> to each input (each input's local slope is 1). Addition just splits the gradient.</div>
+  <div id="q3"></div>
+
+  <!-- ===== 4 ===== -->
+  <h2><span class="tag">4 · careful here</span> The product rule</h2>
+  <p>When two things are <b>multiplied</b>, you <i>can't</i> just multiply their slopes. The rule:</p>
+  <div class="rule">📏 <b>slope of (f · g) = f' · g  +  f · g'</b><br><span style="font-size:14px;color:#065f46">"(slope of first × second) + (first × slope of second)"</span></div>
+  <div class="ex">slope of ( x · x² ):
+   f = x   → f' = 1
+   g = x²  → g' = 2x
+   = 1·x²  +  x·2x  =  x² + 2x²  =  3x²   ✓ (and x·x²=x³, whose slope is 3x²)</div>
+  <div class="micro"><b>micrograd link:</b> this is the <code>*</code> node — and here's the punchline you'll code: at <code>out = a*b</code>, the local slope toward <code>a</code> is just <code>b</code>, and toward <code>b</code> is just <code>a</code>. <b>Each input's local slope is the other input.</b> That's the product rule doing its job.</div>
+  <div id="q4"></div>
+
+  <!-- ===== 5 ===== -->
+  <h2><span class="tag">5 · THE big one</span> The chain rule = backprop</h2>
+  <p>Knobs in a network aren't wired straight to the output — they sit at the <b>start of a chain</b>. The chain rule tells you a buried knob's effect on the output. The idea is dead simple: <b>slopes multiply along the chain.</b></p>
+  <p>Think of each step as an <b>amplifier</b>. Nudge <code>x</code>; it makes <code>c</code> move 3× as much; <code>c</code> makes <code>out</code> move 2× as much. So <code>x</code> moves <code>out</code> by <b>3 × 2 = 6</b>×.</p>
+  <div class="chain">
+    <span class="node">x</span><span class="arrow">→</span><span class="box">×3</span><span class="arrow">→</span>
+    <span class="node">c</span><span class="arrow">→</span><span class="box">×2</span><span class="arrow">→</span>
+    <span class="node">out</span>
+    <span style="width:100%;text-align:center;color:var(--muted)">overall slope of out w.r.t. x = 3 × 2 = <b style="color:var(--ink)">6</b></span>
+  </div>
+  <div class="rule">📏 <b>Chain rule:</b> if <code>out = f(g(x))</code>, then <b>slope = f'(g(x)) · g'(x)</b> = (outer slope) × (inner slope). Multiply the local slopes along the path.</div>
+  <div class="card">
+    <div class="interact">
+      <span>local slope 1:</span><input id="cs1" type="number" value="3" step="0.5">
+      <span>×　local slope 2:</span><input id="cs2" type="number" value="2" step="0.5">
+      <span class="arrow">=</span>
+      <span class="big-eq" id="cout"></span>
+    </div>
+    <div style="font-size:14px;color:var(--muted);margin-top:8px" id="csent"></div>
+  </div>
+  <div class="micro"><b>micrograd link — this IS <code>backward()</code>:</b> to get any knob's <code>.grad</code> (its pull on the loss), you walk backward from the loss multiplying each node's local slope along the way. The whole autograd engine = the rulebook below + this multiply-along-the-chain.</div>
+  <div id="q5"></div>
+
+  <!-- ===== rulebook ===== -->
+  <h2><span class="tag">cheat sheet</span> The rulebook micrograd hard-codes</h2>
+  <p>You don't derive these — you just look them up. micrograd writes <b>one of these per operation</b>, then snaps them together with the chain rule.</p>
+  <div class="card mono" style="font-size:14px;line-height:2;">
+    constant c &nbsp;→&nbsp; 0<br>
+    x<sup>n</sup> &nbsp;→&nbsp; n·x<sup>n−1</sup><br>
+    a + b &nbsp;→&nbsp; slope 1 to each (passes through)<br>
+    a · b &nbsp;→&nbsp; slope <b>b</b> toward a, slope <b>a</b> toward b (the other one)<br>
+    e<sup>x</sup> &nbsp;→&nbsp; e<sup>x</sup> &nbsp;<span style="color:var(--muted)">(its own slope — wild)</span><br>
+    tanh(x) &nbsp;→&nbsp; 1 − tanh(x)²<br>
+    ReLU(x) &nbsp;→&nbsp; 0 if x&lt;0, else 1
+  </div>
+
+  <!-- ===== final ===== -->
+  <h2><span class="tag">final check</span> Are you micrograd-ready?</h2>
+  <p>Mixed questions — including ones shaped exactly like a backward pass.</p>
+  <div id="qf"></div>
+
+  <div class="done-banner" id="done">
+    <h2>🎉 You know all the calculus micrograd needs.</h2>
+    <div id="finalScore" style="font-size:17px;"></div>
+    <div style="margin-top:10px;opacity:.9;font-size:15px;">Slope, power rule, sum, product, and the chain rule. When you write <code style="background:rgba(255,255,255,.2);color:#fff">value.py</code>, every <code style="background:rgba(255,255,255,.2);color:#fff">_backward</code> is just a rulebook entry × the incoming gradient. Go build it.</div>
+  </div>
+</div>
+
+<script>
+/* ---------- interactive widgets ---------- */
+const pn=document.getElementById('pn'),pout=document.getElementById('pout');
+function powr(){const n=+pn.value;pout.innerHTML = n+'·x'+(n-1===1?'':'<sup>'+(n-1)+'</sup>')+(n-1===0?' = '+n:'');}
+pn.oninput=powr;powr();
+
+const cs1=document.getElementById('cs1'),cs2=document.getElementById('cs2'),cout=document.getElementById('cout'),csent=document.getElementById('csent');
+function chainr(){const a=+cs1.value,b=+cs2.value,p=a*b;cout.textContent=p;
+  csent.innerHTML=`Nudge the input a hair → it ripples through both amplifiers → the output moves <b>${p}×</b> as much. That product is the buried knob's gradient.`;}
+cs1.oninput=chainr;cs2.oninput=chainr;chainr();
+
+/* ---------- quiz engine ---------- */
+let totalQ=0, answered=0, correct=0;
+function quiz(mountId, qs){
+  totalQ+=qs.length;
+  const m=document.getElementById(mountId);
+  qs.forEach(q=>{
+    const card=document.createElement('div');card.className='q';
+    const h=document.createElement('div');h.className='qq';h.innerHTML=q.q;card.appendChild(h);
+    const opts=document.createElement('div');
+    let done=false;
+    q.options.forEach((opt,i)=>{
+      const b=document.createElement('button');b.className='opt';b.innerHTML=opt;
+      b.onclick=()=>{
+        if(done)return;done=true;answered++;
+        Array.from(opts.children).forEach(c=>c.disabled=true);
+        if(i===q.correct){b.classList.add('correct');correct++;}
+        else{b.classList.add('wrong');opts.children[q.correct].classList.add('correct');}
+        const ex=document.createElement('div');ex.className='explain';
+        ex.innerHTML=(i===q.correct?'✅ Correct. ':'❌ Not quite. ')+q.explain;
+        card.appendChild(ex);update();
+      };
+      opts.appendChild(b);
+    });
+    card.appendChild(opts);m.appendChild(card);
+  });
+  update();
+}
+function update(){
+  document.getElementById('prog').style.width=(totalQ?answered/totalQ*100:0)+'%';
+  document.getElementById('scoreLbl').textContent=`${answered} of ${totalQ} answered　·　${correct} correct`;
+  if(answered===totalQ&&totalQ>0){
+    const d=document.getElementById('done');d.style.display='block';
+    document.getElementById('finalScore').textContent=`You got ${correct} / ${totalQ} right.`;
+  }
+}
+
+/* ---------- questions ---------- */
+quiz('q1',[
+  {q:"<code>f'(x)</code> means…",
+   options:["the machine's output","the machine's <b>slope</b> at x","a typo for f(x)","x multiplied by f"],
+   correct:1, explain:"f'(x) is the slope rule — feed it x, it tells you the slope there. Same idea as the nudge ratio."},
+  {q:"<code>dy/dx</code> is best read as…",
+   options:["y divided by x","\"change in y per tiny change in x\" — the slope","d times y over d times x","the area under the curve"],
+   correct:1, explain:"The d means \"a tiny change in.\" So dy/dx = how much y moves per tiny move in x = the slope."}
+]);
+quiz('q2',[
+  {q:"Using the power rule, the slope of <code>x⁴</code> is…",
+   options:["4x³","x³","4x⁵","3x⁴"],
+   correct:0, explain:"Bring the 4 down front, knock 1 off the exponent: 4·x³."},
+  {q:"The slope of <code>x</code> (that's x¹) is…",
+   options:["0","x","1","2x"],
+   correct:2, explain:"1·x⁰ = 1·1 = 1. A straight 45° line has constant slope 1."},
+  {q:"The slope of <code>x²</code> at the point x = 5 is…",
+   options:["10","25","2","5"],
+   correct:0, explain:"Slope rule is 2x. Plug in 5 → 2·5 = 10. (This is the 'instant' the formula gives you — no poking.)"}
+]);
+quiz('q3',[
+  {q:"The slope of the plain number <code>12</code> is…",
+   options:["12","1","0","undefined"],
+   correct:2, explain:"A constant is a flat line — it never tilts, so its slope is 0."},
+  {q:"The slope of <code>5x²</code> is…",
+   options:["5x","10x","2x","25x"],
+   correct:1, explain:"The multiplier 5 rides along: 5·(2x) = 10x."},
+  {q:"The slope of <code>x³ + x</code> is…",
+   options:["3x²","3x² + 1","x⁴","3x³"],
+   correct:1, explain:"Sum rule — do each piece: x³ → 3x², and x → 1. Add them: 3x² + 1."}
+]);
+quiz('q4',[
+  {q:"At the node <code>out = a · b</code> with a = 4 and b = 7, the <b>local slope of out toward a</b> is…",
+   options:["4","7","28","11"],
+   correct:1, explain:"At a multiply node, each input's local slope is the OTHER input. Toward a, that's b = 7."},
+  {q:"Why can't you just multiply the two slopes for a product f·g?",
+   options:["You can, always","Because the product rule adds two terms: f'·g + f·g'","Because multiplication has no slope","Because f and g must be equal"],
+   correct:1, explain:"Product rule = f'·g + f·g'. Both inputs contribute, so it's a sum of two terms, not a single product of slopes."}
+]);
+quiz('q5',[
+  {q:"A chain has local slopes <b>3</b> then <b>2</b> (x → ×3 → c → ×2 → out). Overall slope of out w.r.t. x?",
+   options:["5","6","1.5","3"],
+   correct:1, explain:"Chain rule: multiply along the chain → 3 × 2 = 6."},
+  {q:"Longer chain, local slopes <b>2</b>, then <b>0.5</b>, then <b>10</b>. Overall slope?",
+   options:["12.5","10","0.5","10"],
+   correct:1, explain:"2 × 0.5 × 10 = 10. Just multiply all the local slopes on the path."},
+  {q:"In one sentence, backpropagation is…",
+   options:["guessing the weights randomly","walking backward from the loss, multiplying local slopes to get each knob's gradient","adding up all the inputs","measuring every knob with a real poke"],
+   correct:1, explain:"Backprop = the chain rule applied across the whole graph: one backward walk, multiplying local slopes, gives every knob's gradient."}
+]);
+quiz('qf',[
+  {q:"A weight feeds a chain to the loss. The local slopes along the path are <b>2</b>, <b>3</b>, and <b>0.5</b>. What is this weight's gradient (its pull on the loss)?",
+   options:["5.5","3","2","6"],
+   correct:1, explain:"2 × 3 × 0.5 = 3. That product IS the gradient — exactly what backward() computes."},
+  {q:"At <code>out = a · b</code>, a = −2, b = 9. Local slope of out toward <b>b</b>?",
+   options:["9","−2","7","−18"],
+   correct:1, explain:"Toward b, the local slope is the other input, a = −2."},
+  {q:"Gradient flows back into a <code>+</code> node. Each input receives…",
+   options:["half the gradient","the gradient unchanged (×1)","zero","the gradient squared"],
+   correct:1, explain:"A + node has local slope 1 to each input, so it passes the incoming gradient straight through to both."},
+  {q:"Slope of <code>4x² + 3x + 9</code>?",
+   options:["8x + 3","8x + 3 + 9","4x + 3","8x² + 3"],
+   correct:0, explain:"Piece by piece: 4x² → 8x, 3x → 3, 9 → 0. Add: 8x + 3."}
+]);
+</script>
+</body>
+</html>
